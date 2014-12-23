@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ! Copyright (c) boogiedev.com, all rights reserved.
+ ! This code is licensed under the LGPL 3.0 license,
+ ! available at the root application directory.
+ ! -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	
+	<modelVersion>4.0.0</modelVersion>
+	
+	<groupId>com.boogiedev</groupId>
+	<artifactId>scss</artifactId>
+	<version>1.0</version>
+	<packaging>jar</packaging>
+	<name>scss</name>
+	<description>SASS/SCSS Smart Compiler</description>
+	
+	<developers>
+		<developer>
+			<id>chma</id>
+			<name>Christophe Maillard</name>
+			<email>christophe.maillard@rocketmail.com</email>
+		</developer>
+	</developers>
+	
+	<properties>
+		<jdk.version>1.7</jdk.version>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+	</properties>
+	
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.ant</groupId>
+			<artifactId>ant</artifactId>
+			<version>1.8.2</version>
+		</dependency>
+	</dependencies>
+	
+</project>
