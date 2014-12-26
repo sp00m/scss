@@ -12,41 +12,61 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-import org.apache.tools.ant.BuildException;
-import org.apache.tools.ant.Project;
-import org.apache.tools.ant.Task;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * SASS/SCSS compiler Ant task.
+ * SASS/SCSS compiler.
  */
-public class ScssCompiler extends Task {
+public class ScssCompiler {
+
+	/** Default logger. */
+	private static final Logger DEFAULT_LOGGER = LoggerFactory.getLogger(ScssCompiler.class);
 
 	/** File separator, defaulted to "/". */
 	private static final String FILE_SEPARATOR = System.getProperty("file.separator", "/");
 
-	/** The CSS directory path, containing the file the compile. */
-	private String cssDirPath;
+	/** The SASS/SCSS directory path, containing the SASS/SCSS file to compile. */
+	private final String scssDirPath;
+
+	/** The CSS directory path, that will contain the CSS compiled files. */
+	private final String cssDirPath;
 
 	/** Path to the SASS executable. */
-	private File sassExe;
+	private final File sassExe;
 
-	/** The SASS/SCSS directory path, that will contain the SASS/SCSS compiled files. */
-	private String scssDirPath;
+	/** Logger. */
+	private Logger logger;
 
 	/**
-	 * {@inheritDoc}
+	 * Constructor.
+	 *
+	 * @param scssDirPath
+	 *          The SASS/SCSS directory path, that will contain the SASS/SCSS compiled files.
+	 * @param cssDirPath
+	 *          The CSS directory path, containing the file the compile.
+	 * @param sassExe
+	 *          Path to the SASS executable.
 	 */
-	@Override
-	public void execute() throws BuildException {
-		try {
-			List<File> cssFiles = scanAndCompile(FILE_SEPARATOR);
-			cleanCssFiles(new File(cssDirPath), cssFiles);
-			File cacheDir = new File(".sass-cache");
-			if (cacheDir.exists()) {
-				delete(cacheDir);
-			}
-		} catch (Exception e) {
-			throw new BuildException(e);
+	public ScssCompiler(String scssDirPath, String cssDirPath, File sassExe) {
+		this.scssDirPath = scssDirPath;
+		this.cssDirPath = cssDirPath;
+		this.sassExe = sassExe;
+		logger = DEFAULT_LOGGER;
+	}
+
+	/**
+	 * Launches SASS/SCSS compilation.
+	 *
+	 * @throws ScssCompilerException
+	 *           If an error occurred while compiling a file.
+	 */
+	public void compile() throws ScssCompilerException {
+		List<File> cssFiles = scanAndCompile(FILE_SEPARATOR);
+		cleanCssFiles(new File(cssDirPath), cssFiles);
+		File cacheDir = new File(".sass-cache");
+		if (cacheDir.exists()) {
+			delete(cacheDir);
 		}
 	}
 
@@ -56,10 +76,10 @@ public class ScssCompiler extends Task {
 	 * @param scssDir
 	 *          The directory containing SASS/SCSS files.
 	 * @return The compiled (or already existing) corresponding CSS files.
-	 * @throws Exception
-	 *           If an error occurred while compiling.
+	 * @throws ScssCompilerException
+	 *           If an error occurred while compiling a file.
 	 */
-	private List<File> scanAndCompile(String scssDir) throws Exception {
+	private List<File> scanAndCompile(String scssDir) throws ScssCompilerException {
 		List<File> cssFiles = new ArrayList<>();
 		for (File scssFile : new File(scssDirPath + scssDir).listFiles()) {
 			if (scssFile.isDirectory()) {
@@ -71,7 +91,7 @@ public class ScssCompiler extends Task {
 					if (!cssFile.exists() || scssFile.lastModified() > cssFile.lastModified()) {
 						compile(scssFile, cssFile);
 					} else {
-						log("Already up-to-date: " + cssFile.getAbsolutePath());
+						logger.info("Already up-to-date: " + cssFile.getAbsolutePath());
 					}
 					cssFiles.add(cssFile);
 				}
@@ -87,22 +107,26 @@ public class ScssCompiler extends Task {
 	 *          The SASS/SCSS file to compile.
 	 * @param cssFile
 	 *          The output CSS file to create.
-	 * @throws Exception
-	 *           If an error occurred while compiling.
+	 * @throws ScssCompilerException
+	 *           If an error occurred while compiling the file.
 	 */
-	private void compile(File scssFile, File cssFile) throws Exception {
+	private void compile(File scssFile, File cssFile) throws ScssCompilerException {
 		prepare(cssFile);
 		String scssFilePath = scssFile.getAbsolutePath();
 		String cssFilePath = cssFile.getAbsolutePath();
 		ProcessBuilder builder = new ProcessBuilder(sassExe.getAbsolutePath(), scssFilePath, cssFilePath);
 		builder.directory(sassExe.getParentFile());
-		Process process = builder.start();
-		int exitValue = process.waitFor();
-		if (exitValue != 0) {
-			logErrorStream(process);
-			throw new IllegalStateException("Compiling " + scssFilePath + " to " + cssFilePath + " exited with code " + exitValue);
+		try {
+			Process process = builder.start();
+			int exitValue = process.waitFor();
+			if (exitValue != 0) {
+				logErrorStream(process);
+				throw new ScssCompilerException("Compiling " + scssFilePath + " to " + cssFilePath + " exited with code " + exitValue);
+			}
+		} catch (IOException | InterruptedException e) {
+			throw new ScssCompilerException("An error occurred while compiling " + scssFilePath + " to " + cssFilePath, e);
 		}
-		log("Compiled: " + cssFilePath);
+		logger.info("Compiled: " + cssFilePath);
 	}
 
 	/**
@@ -110,12 +134,16 @@ public class ScssCompiler extends Task {
 	 *
 	 * @param cssFile
 	 *          The file to create.
-	 * @throws IOException
-	 *           If an error occured while creating the file.
+	 * @throws ScssCompilerException
+	 *           If an error occurred while initializing the CSS file.
 	 */
-	private void prepare(File cssFile) throws IOException {
-		cssFile.getParentFile().mkdirs();
-		cssFile.createNewFile();
+	private void prepare(File cssFile) throws ScssCompilerException {
+		try {
+			cssFile.getParentFile().mkdirs();
+			cssFile.createNewFile();
+		} catch (IOException e) {
+			throw new ScssCompilerException("An error occurred while creating " + cssFile, e);
+		}
 	}
 
 	/**
@@ -125,10 +153,10 @@ public class ScssCompiler extends Task {
 	 *          The CSS directory.
 	 * @param cssFiles
 	 *          The CSS files that have been generated during this compilation.
-	 * @throws Exception
-	 *           If an error occurred while deleting the directory.
+	 * @throws ScssCompilerException
+	 *           If an error occurred while deleting a CSS file/directory.
 	 */
-	private void cleanCssFiles(File cssDir, List<File> cssFiles) throws Exception {
+	private void cleanCssFiles(File cssDir, List<File> cssFiles) throws ScssCompilerException {
 		if (cssDir.isHidden() || cssDir.getName().startsWith(".")) {
 			return;
 		}
@@ -137,16 +165,16 @@ public class ScssCompiler extends Task {
 				cleanCssFiles(cssFile, cssFiles);
 			} else if (cssFile.getName().matches(".*(?i)\\.css") && !cssFiles.contains(cssFile)) {
 				if (!cssFile.delete()) {
-					throw new IllegalStateException("Could not delete file " + cssFile.getAbsolutePath());
+					throw new ScssCompilerException("Could not delete file " + cssFile);
 				}
-				log("Deleted: " + cssFile.getAbsolutePath());
+				logger.info("Deleted: " + cssFile.getAbsolutePath());
 			}
 		}
 		if (cssDir.list().length == 0) {
 			if (!cssDir.delete()) {
-				throw new IllegalStateException("Could not delete dir " + cssDir.getAbsolutePath());
+				throw new ScssCompilerException("Could not delete dir " + cssDir);
 			}
-			log("Deleted: " + cssDir.getAbsolutePath());
+			logger.info("Deleted: " + cssDir.getAbsolutePath());
 		}
 	}
 
@@ -155,19 +183,21 @@ public class ScssCompiler extends Task {
 	 *
 	 * @param dir
 	 *          The directory to delete.
+	 * @throws ScssCompilerException
+	 *           If an error occurred while deleting the directory.
 	 */
-	private void delete(File dir) {
+	private void delete(File dir) throws ScssCompilerException {
 		for (File file : dir.listFiles()) {
 			if (file.isDirectory()) {
 				delete(file);
 			} else {
 				if (!file.delete()) {
-					throw new IllegalStateException("Could not delete file " + file.getAbsolutePath());
+					throw new ScssCompilerException("Could not delete file " + file);
 				}
 			}
 		}
 		if (!dir.delete()) {
-			throw new IllegalStateException("Could not delete dir " + dir.getAbsolutePath());
+			throw new ScssCompilerException("Could not delete dir " + dir);
 		}
 	}
 
@@ -179,40 +209,21 @@ public class ScssCompiler extends Task {
 	 */
 	private void logErrorStream(Process process) {
 		try (Scanner scanner = new Scanner(process.getErrorStream())) {
-			if (scanner.useDelimiter("\\A").hasNext()) {
-				log(scanner.next(), Project.MSG_ERR);
+			scanner.useDelimiter("\\A");
+			while (scanner.hasNext()) {
+				logger.error(scanner.next());
 			}
 		}
 	}
 
 	/**
-	 * Sets the CSS directory path, containing the file the compile.
+	 * Sets the logger to use.
 	 *
-	 * @param cssDirPath
-	 *          The CSS directory path, containing the file the compile.
+	 * @param logger
+	 *          The logger to use.
 	 */
-	public void setCssDir(String cssDirPath) {
-		this.cssDirPath = cssDirPath.trim().replaceAll("[/\\\\]$", "");
-	}
-
-	/**
-	 * Sets the path to the SASS executable.
-	 *
-	 * @param cssDirPath
-	 *          The path to the SASS executable.
-	 */
-	public void setSassExe(String sassExe) {
-		this.sassExe = new File(sassExe);
-	}
-
-	/**
-	 * Sets the SASS/SCSS directory path, that will contain the SASS/SCSS compiled files.
-	 *
-	 * @param cssDirPath
-	 *          The SASS/SCSS directory path, that will contain the SASS/SCSS compiled files.
-	 */
-	public void setScssDir(String scssDirPath) {
-		this.scssDirPath = scssDirPath.trim().replaceAll("[/\\\\]$", "");
+	public void setLogger(Logger logger) {
+		this.logger = logger;
 	}
 
 }
