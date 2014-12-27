@@ -9,7 +9,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	
 	<groupId>com.boogiedev</groupId>
-	<artifactId>scss</artifactId>
+	<artifactId>boogiedev-scss</artifactId>
 	<version>1.1</version>
 	<packaging>jar</packaging>
 	<name>scss</name>
@@ -87,6 +87,11 @@
 					</descriptorRefs>
 					<appendAssemblyId>false</appendAssemblyId>
 					<attach>false</attach>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+						</manifest>
+					</archive>
 				</configuration>
 			</plugin>
 			
