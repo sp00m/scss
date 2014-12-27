@@ -13,6 +13,6 @@ Build a JAR from these sources.
 Create a target:
 
 	<target name="scss-compile">
-		<taskdef name="scssCompile" classname="com.boogiedev.scss.ScssCompilerTask" classpath="ant/scss-1.1.jar" />
+		<taskdef name="scssCompile" classname="com.boogiedev.scss.ScssCompilerTask" classpath="ant/boogiedev-scss-1.1.jar" />
 		<scssCompile cssDir="${css.dir}" scssDir="${scss.dir}" sassExe="${sass.exe}" />
 	</target>
